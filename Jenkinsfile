@@ -108,30 +108,7 @@ pipeline {
         '''
     }
 }
-        stage('Push to Docker Hub') {
-            steps {
-                echo 'All tests passed. Publishing image.'
-
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_TOKEN'
-                    )
-                ]) {
-                    sh '''
-                        set +x
-                        echo "$DOCKER_TOKEN" | docker login \
-                            -u "$DOCKER_USER" --password-stdin
-
-                        docker push "$IMAGE_REPO:$BUILD_NUMBER"
-                        docker push "$IMAGE_REPO:latest"
-
-                        docker logout
-                    '''
-                }
-            }
-        }
+      
     }
 
     post {
