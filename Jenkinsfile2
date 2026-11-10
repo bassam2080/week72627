@@ -1,0 +1,147 @@
+
+pipeline {
+   agent any
+
+  environment {
+     IMAGE_REPO = 'bassam2080/myapp3'
+   
+    DOCKERHUB_CREDENTIALS = credentials('DockerHub')
+    DOCKERHUB_USERNAME = 'bassam2080'
+  }
+
+
+  
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo 'Downloading latest application from GitHub'
+
+                git branch: 'main',
+                    url: 'https://github.com/bassam2080/week72627.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Removing previous containers and building PHP image'
+
+                sh '''
+                    docker compose down --remove-orphans || true
+                    docker compose build webphp
+                '''
+            }
+        }
+
+        stage('Run Containers') {
+            steps {
+                echo 'Starting PHP and MySQL containers'
+
+                sh '''
+                    docker compose up -d --no-build
+                    docker compose ps
+                '''
+            }
+        }
+
+        stage('Testing') {
+            steps {
+                echo 'Checking PHP syntax'
+
+                sh '''
+                    docker compose exec -T webphp php -l index.php
+                '''
+
+                echo 'Testing PHP web application'
+
+                sh '''
+                    for i in $(seq 1 20); do
+                        if docker compose exec -T webphp php -r \
+                        'exit(@file_get_contents("http://127.0.0.1/") === false ? 1 : 0);'
+                        then
+                            echo "Web test passed"
+                            break
+                        fi
+
+                        if [ "$i" -eq 20 ]; then
+                            echo "Web test failed"
+                            exit 1
+                        fi
+                        sleep 3
+                    done
+                '''
+
+                echo 'Testing MySQL database'
+
+                sh '''
+                    for i in $(seq 1 20); do
+                        if docker compose exec -T db sh -c \
+                        'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1"'
+                        then
+                            echo "Database test passed"
+                            break
+                        fi
+
+                        if [ "$i" -eq 20 ]; then
+                            echo "Database test failed"
+                            exit 1
+                        fi
+                        sleep 3
+                    done
+                '''
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                echo 'All tests passed. Pushing Docker image'
+
+                 sh '''
+            echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login \
+                -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin
+
+            IMAGE_ID=$(docker compose images -q webphp)
+
+            docker tag "$IMAGE_ID" "$IMAGE_REPO:latest"
+
+            docker push "$IMAGE_REPO:latest"
+
+            docker logout
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning Docker resources'
+
+            sh '''
+                IMAGE_ID=$(docker compose images -q webphp 2>/dev/null || true)
+
+                docker compose down --remove-orphans || true
+
+                docker image rm "$IMAGE_REPO:latest" || true
+
+                if [ -n "$IMAGE_ID" ]; then
+                    docker image rm "$IMAGE_ID" || true
+                fi
+
+                docker builder prune -f || true
+
+                docker system df || true
+            '''
+        }
+
+        success {
+            echo 'Pipeline completed successfully!'
+            echo 'Image pushed to Docker Hub.'
+        }
+
+        failure {
+            echo 'Pipeline failed. No further publishing attempted.'
+        }
+    }
+}
