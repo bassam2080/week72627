@@ -12,7 +12,7 @@ pipeline {
     DOCKERHUB_CREDENTIALS = credentials('DockerHub')
     DOCKERHUB_USERNAME = 'bassam2080'
 }
-    }
+    
 
     stages {
 
@@ -120,3 +120,4 @@ pipeline {
         }
     }
 
+}
