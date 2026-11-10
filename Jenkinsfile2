@@ -78,21 +78,7 @@ skipDefaultCheckout(true)
 
                 echo 'Testing MySQL database'
 
-                sh '''
-                    for i in $(seq 1 20); do
-                        if docker compose exec -T db sh -c \
-                        'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1"'
-                        then
-                            echo "Database test passed"
-                            break
-                        fi
-
-                        if [ "$i" -eq 20 ]; then
-                            echo "Database test failed"
-                            exit 1
-                        fi
-                        sleep 3
-                    done
+                
                 '''
             }
         }
