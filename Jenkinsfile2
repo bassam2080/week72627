@@ -79,7 +79,6 @@ skipDefaultCheckout(true)
                 echo 'Testing MySQL database'
 
                 
-                '''
             }
         }
 
