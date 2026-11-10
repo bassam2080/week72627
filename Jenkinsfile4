@@ -124,7 +124,7 @@ stage('Testing') {
         }
     }
 }
-
+}
 
     post {
         always {
@@ -156,4 +156,4 @@ stage('Testing') {
     }
 }
 
-}
+
