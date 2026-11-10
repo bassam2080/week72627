@@ -119,4 +119,4 @@ pipeline {
             echo 'Pipeline failed. Image was not published.'
         }
     }
-}
+
