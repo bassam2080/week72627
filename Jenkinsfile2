@@ -9,6 +9,10 @@ pipeline {
     DOCKERHUB_USERNAME = 'bassam2080'
   }
 
+options{
+skipDefaultCheckout(true)
+}
+
 
   
 
