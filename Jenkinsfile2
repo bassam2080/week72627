@@ -18,14 +18,7 @@ skipDefaultCheckout(true)
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                echo 'Downloading latest application from GitHub'
-
-                git branch: 'main',
-                    url: 'https://github.com/bassam2080/week72627.git'
-            }
-        }
+       
 
         stage('Build') {
             steps {
