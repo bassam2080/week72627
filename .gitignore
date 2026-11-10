@@ -1,0 +1,2 @@
+ db_data/*.sock
+ db_data/**/*.sock
