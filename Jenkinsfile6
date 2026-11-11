@@ -1,0 +1,114 @@
+pipeline {
+    agent any 
+    options { skipDefaultCheckout(true) }
+  environment {
+    IMAGE_REPO = 'bassam2080/myapp3'
+    DOCKERHUB_CREDENTIALS = credentials('DockerHub')
+    DOCKERHUB_USERNAME = 'bassam2080'
+}
+    stages { 
+        stage('Checkout') {
+            steps { 
+                 echo 'Downloading latest code from GitHub'
+              dir('ci-source') 
+             { checkout scm } }
+        }
+        stage('Prepare') {
+            steps {
+                echo 'Preparing application for Docker'
+                sh '''
+                    mkdir -p ci-runtime/site
+                    cp ci-source/Dockerfile ci-runtime/
+                    cp ci-source/docker-compose.yml ci-runtime/
+                    cp -r ci-source/site/. ci-runtime/site/
+                '''
+            }
+        }
+        stage('Build') {
+            steps {
+                dir('ci-runtime') {
+                    sh 'docker compose down --remove-orphans || true'
+                    sh 'docker compose build webphp'
+                }
+            }
+        }
+        stage('Run Containers') {
+            steps {
+                dir('ci-runtime') {
+                    sh '''
+                        docker compose up -d --no-build
+                        docker compose ps -a
+                    '''
+                }
+            }
+        }
+        stage('Testing') {
+            steps {
+                echo 'Testing PHP syntax'
+                dir('ci-runtime') {
+                    sh 'docker compose exec -T webphp php -l index.php'
+                echo 'Testing PHP web application'
+                    sh '''
+                        for i in $(seq 1 20); do
+                            if docker compose exec -T webphp php -r \
+                            'exit(@file_get_contents("http://127.0.0.1/") === false ? 1 : 0);'
+                            then
+                                echo "HTTP test passed"
+                                break
+                            fi
+                            if [ "$i" -eq 20 ]; then
+                                 echo "Web application test failed"
+                                 exit 1
+                            fi
+    
+                            sleep 3
+                        done
+                        
+                    '''
+                          echo 'Testing MySQL database'
+sh '''
+                for i in $(seq 1 20); do
+
+                    if docker compose exec -T db sh -c \
+                    'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -D docker_database -Nse "SELECT 1"'
+                    then
+                        echo "MySQL database test passed"
+                        exit 0
+                    fi
+
+                    if ! docker compose ps -q \
+                        --status running db | grep -q .; then
+                        echo "MySQL container has stopped"
+                        docker compose logs --tail=50 db
+                        exit 1
+                    fi
+
+                    if [ "$i" -eq 20 ]; then
+                        echo "MySQL database test failed"
+                        docker compose logs --tail=50 db
+                        exit 1
+                    fi
+
+                    sleep 3
+                done
+            '''
+                }
+            }
+        }
+    }
+    post {
+        always {
+            dir('ci-runtime') {
+                sh '''
+                    docker compose ps -a || true
+                    docker compose logs --tail=20 db || true
+                    docker compose down --remove-orphans || true
+                    docker image rm "$IMAGE_REPO:latest" || true
+                    docker builder prune -f || true
+                '''
+            }
+        }
+        success { echo 'Task 1 CI checks passed.' }
+        failure { echo 'Task 1 failed; inspect Console Output.' }
+    }
+}
