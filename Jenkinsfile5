@@ -3,7 +3,7 @@ pipeline {
     options { skipDefaultCheckout(true) }
     stages { 
         stage('Checkout') {
-            steps {
+            steps { 
                  echo 'Downloading latest code from GitHub'
               dir('ci-source') 
              { checkout scm } }
