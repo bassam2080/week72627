@@ -104,12 +104,12 @@ stage('Push to Docker Hub') {
                 IMAGE_ID=$(docker compose images -q webphp)
                 test -n "$IMAGE_ID"
 
-                docker tag "$IMAGE_ID" "$IMAGE_REPO:latest"
+                docker tag "$IMAGE_ID" "$IMAGE_REPO:4"
 
                 echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login \
                     -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin
 
-                docker push "$IMAGE_REPO:latest"
+                docker push "$IMAGE_REPO:4"
 
                 docker logout
             '''
@@ -125,7 +125,7 @@ stage('Push to Docker Hub') {
                     docker compose ps -a || true
                     docker compose logs --tail=20 db || true
                     docker compose down --remove-orphans || true
-                    docker image rm "$IMAGE_REPO:latest" || true
+                    docker image rm "$IMAGE_REPO:4" || true
                     docker builder prune -f || true
                 '''
             }
