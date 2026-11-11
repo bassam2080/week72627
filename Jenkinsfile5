@@ -1,7 +1,7 @@
 pipeline {
     agent any 
     options { skipDefaultCheckout(true) }
-    stages {
+    stages { 
         stage('Checkout') {
             steps {
                  echo 'Downloading latest code from GitHub'
