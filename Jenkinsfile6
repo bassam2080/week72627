@@ -109,7 +109,7 @@ stage('Push to Docker Hub') {
                 echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login \
                     -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin
 
-                docker push "$IMAGE_REPO:latest"
+                docker push "$IMAGE_REPO:4.1"
 
                 docker logout
             '''
