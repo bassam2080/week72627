@@ -11,7 +11,7 @@ pipeline {
             steps { 
                  echo 'Downloading latest code from GitHub'
               dir('ci-source') 
-             { checkout scm } }
+             { checkout scm } } 
         }
         stage('Prepare') {
             steps {
