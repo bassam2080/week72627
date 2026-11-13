@@ -6,7 +6,7 @@ pipeline {
     DOCKERHUB_CREDENTIALS = credentials('DockerHub')
     DOCKERHUB_USERNAME = 'bassam2080'
 }
-    stages { 
+    stages {  
         stage('Checkout') {
             steps { 
                  echo 'Downloading latest code from GitHub'
