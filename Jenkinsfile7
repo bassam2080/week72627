@@ -16,7 +16,8 @@ pipeline {
     }
 
     stages {
-           steps {
+            stage('Prepare SSH') {
+            steps {
                 withCredentials([
                     file(credentialsId: 'ec2-known-hosts',
                          variable: 'HOST_KEYS')
