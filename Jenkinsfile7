@@ -21,7 +21,7 @@ pipeline {
             steps {
                 echo 'Connecting to AWS EC2 and deploying application'
 
-                sshagent(credentials: ['16.192.61.191']) {
+                sshagent(credentials: ['16.171.150.96']) {
                     sh '''
                         ssh "${EC2_USER}@${EC2_HOST}" \
                           "IMAGE_REPO=${IMAGE_REPO} IMAGE_TAG=${IMAGE_TAG} bash -se" <<'EOF'
