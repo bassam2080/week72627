@@ -16,7 +16,22 @@ pipeline {
     }
 
     stages {
+           steps {
+                withCredentials([
+                    file(credentialsId: 'ec2-known-hosts',
+                         variable: 'HOST_KEYS')
+                ]) {
+                    sh '''
+                        mkdir -p ~/.ssh
+                        chmod 700 ~/.ssh
 
+                        cp "$HOST_KEYS" ~/.ssh/known_hosts
+                        chmod 600 ~/.ssh/known_hosts
+                    '''
+                }
+            }
+        }
+        
         stage('Deploy to EC2') {
             steps {
                 echo 'Connecting to AWS EC2 and deploying application'
