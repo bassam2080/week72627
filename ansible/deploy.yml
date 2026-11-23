@@ -1,0 +1,50 @@
+
+---
+- name: Deploy PHP application to EC2 servers
+  hosts: webservers
+  become: true
+
+  vars:
+    image_name: "bassam2080/myapp3:4.1"
+    container_name: "myapp-container"
+
+  tasks:
+
+    - name: Install Docker
+      ansible.builtin.dnf:
+        name: docker
+        state: present
+
+    - name: Start and enable Docker
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Pull Docker image from Docker Hub
+      ansible.builtin.command:
+        cmd: "docker pull {{ image_name }}"
+      changed_when: true
+
+    - name: Remove existing application container
+      ansible.builtin.shell: |
+        docker rm -f {{ container_name }} || true
+
+    - name: Run Docker application
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - -d
+          - --name
+          - "{{ container_name }}"
+          - --restart
+          - unless-stopped
+          - -p
+          - "5000:80"
+          - "{{ image_name }}"
+
+    - name: Display running containers
+      ansible.builtin.command:
+        cmd: docker ps
+      changed_when: false
