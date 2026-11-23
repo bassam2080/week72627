@@ -1,1 +1,70 @@
+ 
+pipeline {
+    agent any
 
+    options {
+        skipDefaultCheckout(true)
+    }
+
+    environment {
+        EC2_HOST = 'ec2-16-171-150-96.eu-north-1.compute.amazonaws.com'
+        EC2_USER = 'ec2-user'
+
+        IMAGE_REPO = 'bassam2080/myapp3'
+        IMAGE_TAG = '4.1'
+    }
+
+    stages {
+
+        stage('Deploy to EC2') {
+            steps {
+                sshagent(credentials: ['16-171-150-96']) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no \
+                            -o UserKnownHostsFile=/dev/null \
+                            -o BatchMode=yes \
+                            "${EC2_USER}@${EC2_HOST}" \
+                            "IMAGE_REPO=${IMAGE_REPO} IMAGE_TAG=${IMAGE_TAG} bash -se" <<'EOF'
+
+                            set -e
+
+                            echo "Installing Docker if required"
+
+                            if ! command -v docker >/dev/null 2>&1; then
+                                sudo dnf install -y docker
+                            fi
+
+                            sudo systemctl enable --now docker
+
+                            echo "Pulling image from Docker Hub"
+                            sudo docker pull "$IMAGE_REPO:$IMAGE_TAG"
+
+                            echo "Removing previous container"
+                            sudo docker rm -f myapp-container || true
+
+                            echo "Starting application"
+                            sudo docker run -d \
+                                --name myapp-container \
+                                --restart unless-stopped \
+                                -p 5000:80 \
+                                "$IMAGE_REPO:$IMAGE_TAG"
+
+                            echo "Displaying running containers"
+                            sudo docker ps
+EOF
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Application deployed successfully to EC2.'
+        }
+
+        failure {
+            echo 'Deployment failed. Check Console Output.'
+        }
+    }
+}
