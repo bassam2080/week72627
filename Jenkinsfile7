@@ -1,76 +1,70 @@
+ 
 pipeline {
     agent any
 
-    environment {
-        // DockerHub username/password credential
-        DOCKERHUB_CREDENTIALS = credentials('DockerHub')
+    options {
+        skipDefaultCheckout(true)
+        disableConcurrentBuilds()
+    }
 
-        EC2_HOST = '16.192.61.191'
+    environment {
+        IMAGE_REPO = 'bassam2080/myapp3'
+        IMAGE_TAG  = '4.1'
+
+        EC2_HOST = '16.171.150.96'
         EC2_USER = 'ec2-user'
     }
 
     stages {
-        stage('Docker Login') {
-            steps {
-                sh '''
-                    echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin
-                '''
-            }
-        }
-
-        stage('Build & Push Docker Image') {
-            steps {
-                sh '''
-                    docker stop myapp4-web || true
-                    docker rm myapp4-web || true
-                    docker rmi bassam2080/myapp4-web || true
-
-                    docker build -t bassam2080/myapp4-web .
-                    docker push bassam2080/myapp4-web
-                '''
-            }
-        }
 
         stage('Deploy to EC2') {
             steps {
-                // *** USE EXACTLY THE ID FROM THE SNIPPET GENERATOR HERE ***
-                sshagent (credentials: ['16.192.61.191']) {
+                echo 'Connecting to AWS EC2 and deploying application'
+
+                sshagent(credentials: ['ec2-ssh-key']) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
-# -------- Amazon Linux setup --------
-sudo yum update -y
+                        ssh "${EC2_USER}@${EC2_HOST}" \
+                          "IMAGE_REPO=${IMAGE_REPO} IMAGE_TAG=${IMAGE_TAG} bash -se" <<'EOF'
 
-if ! command -v docker &> /dev/null
-then
-    if command -v amazon-linux-extras &> /dev/null; then
-        sudo amazon-linux-extras install docker -y
-    else
-        sudo yum install -y docker
-    fi
-    sudo systemctl start docker
-    sudo systemctl enable docker
-fi
+                            set -e
 
-sudo docker pull bassam2080/myapp3
-sudo docker stop myapp-container || true
-sudo docker rm myapp-container || true
-sudo docker run -d --name myapp-container -p 5000:80 bassam2080/myapp3
+                            echo "Checking Docker installation"
+
+                            if ! command -v docker >/dev/null 2>&1; then
+                                sudo dnf install -y docker
+                            fi
+
+                            sudo systemctl enable --now docker
+
+                            echo "Pulling Docker image"
+                            sudo docker pull "$IMAGE_REPO:$IMAGE_TAG"
+
+                            echo "Removing previous application container"
+                            sudo docker rm -f myapp-container || true
+
+                            echo "Starting new application container"
+                            sudo docker run -d \
+                                --name myapp-container \
+                                --restart unless-stopped \
+                                -p 5000:80 \
+                                "$IMAGE_REPO:$IMAGE_TAG"
+
+                            echo "Checking running containers"
+                            sudo docker ps
 EOF
                     '''
                 }
             }
         }
-
-        stage('Clean') {
-            steps {
-                echo "Cleaning up..."
-            }
-        }
     }
 
     post {
-        always {
-            echo "Pipeline completed."
+        success {
+            echo 'Deployment to AWS EC2 completed successfully!'
+        }
+
+        failure {
+            echo 'Deployment failed. Check Jenkins Console Output.'
         }
     }
 }
