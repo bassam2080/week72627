@@ -18,7 +18,7 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-                sshagent(credentials: ['16-171-150-96']) {
+                sshagent(credentials: ['16.171.150.96']) {
                     sh '''
                         ssh -o StrictHostKeyChecking=no \
                             -o UserKnownHostsFile=/dev/null \
