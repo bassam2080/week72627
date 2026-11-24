@@ -1,0 +1,120 @@
+
+pipeline {
+    agent any
+
+    options {
+        skipDefaultCheckout(true)
+        disableConcurrentBuilds()
+    }
+
+    environment {
+        CONTROL_HOST = '16.192.78.20'
+        EC2_USER = 'ec2-user'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo 'Downloading Ansible files from GitHub'
+
+                dir('ci-source') {
+                    checkout scm
+                }
+            }
+        }
+
+        stage('Install Ansible on webserver2') {
+            steps {
+                sshagent(credentials: ['16.171.150.96']) {
+                    sh '''
+                        ssh -A \
+                            -o StrictHostKeyChecking=no \
+                            -o UserKnownHostsFile=/dev/null \
+                            -o BatchMode=yes \
+                            "$EC2_USER@$CONTROL_HOST" 'bash -se' <<'EOF'
+
+                            set -e
+
+                            echo "Installing Python and Ansible"
+
+                            sudo dnf install -y python3 python3-pip
+
+                            if [ ! -d "$HOME/ansible-venv" ]; then
+                                python3 -m venv "$HOME/ansible-venv"
+                            fi
+
+                            "$HOME/ansible-venv/bin/pip" install ansible-core
+
+                            "$HOME/ansible-venv/bin/ansible" --version
+EOF
+                    '''
+                }
+            }
+        }
+
+        stage('Copy Ansible Files') {
+            steps {
+                sshagent(credentials: ['16.171.150.96']) {
+                    sh '''
+                        SSH_OPTIONS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes"
+
+                        echo "Creating Ansible directory"
+
+                        ssh $SSH_OPTIONS \
+                            "$EC2_USER@$CONTROL_HOST" \
+                            'mkdir -p ~/week9-ansible'
+
+                        echo "Copying inventory and playbook"
+
+                        scp $SSH_OPTIONS \
+                            ci-source/ansible/inventory.ini \
+                            ci-source/ansible/deploy.yml \
+                            "$EC2_USER@$CONTROL_HOST:week9-ansible/"
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Two EC2 Servers') {
+            steps {
+                sshagent(credentials: ['16.171.150.96']) {
+                    sh '''
+                        ssh -A \
+                            -o StrictHostKeyChecking=no \
+                            -o UserKnownHostsFile=/dev/null \
+                            -o BatchMode=yes \
+                            "$EC2_USER@$CONTROL_HOST" 'bash -se' <<'EOF'
+
+                            set -e
+
+                            cd "$HOME/week9-ansible"
+
+                            echo "Checking forwarded SSH agent"
+                            test -n "$SSH_AUTH_SOCK"
+
+                            echo "Deploying to webserver3 and webserver4"
+
+                            export ANSIBLE_HOST_KEY_CHECKING=False
+
+                            "$HOME/ansible-venv/bin/ansible-playbook" \
+                                -i inventory.ini deploy.yml
+
+                            echo "Deployment finished"
+EOF
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Ansible deployment completed successfully!'
+        }
+
+        failure {
+            echo 'Ansible deployment failed. Check Console Output.'
+        }
+    }
+}
