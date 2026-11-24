@@ -11,7 +11,7 @@ pipeline {
         IMAGE_REPO = 'bassam2080/myapp3'
         IMAGE_TAG  = '4.1'
 
-        EC2_HOST = '16.192.87.20'
+        EC2_HOST = '16.192.78.20'
         EC2_USER = 'ec2-user'
     }
 
